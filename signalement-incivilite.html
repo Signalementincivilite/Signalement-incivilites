@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Signalement d'incivilités</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; margin: 0; background-color: #f9f9f9; color: #333; }
+    header { background-color: #34495e; color: white; padding: 2rem; text-align: center; }
+    nav { background-color: #2c3e50; display: flex; justify-content: center; gap: 2rem; padding: 1rem 0; }
+    nav a { color: white; text-decoration: none; font-weight: bold; transition: color 0.3s; }
+    nav a:hover { color: #2ecc71; }
+    main { padding: 2rem; max-width: 1000px; margin: auto; }
+    section { background-color: white; padding: 2rem; margin-bottom: 2rem; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    h2 { margin-top: 0; color: #2c3e50; }
+    form label { display: block; margin-top: 1rem; font-weight: bold; }
+    form input, form textarea, form button {
+      width: 100%; padding: 0.75rem; margin-top: 0.5rem;
+      border: 1px solid #ccc; border-radius: 6px; font-size: 1rem;
+    }
+    form button {
+      background-color: #2ecc71; color: white; border: none;
+      margin-top: 1.5rem; cursor: pointer;
+    }
+    #map { height: 600px; border-radius: 8px; margin-top: 1rem; }
+    #filtreDates { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    #filtreDates div { flex: 1; min-width: 200px; }
+    #filtreDates button { width: auto; background-color: #3498db; }
+    footer { text-align: center; padding: 2rem; background-color: #ecf0f1; font-size: 0.9rem; }
+    .contact { font-weight: bold; color: #2c3e50; }
+  </style>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+</head>
+<body>
+
+<header>
+  <h1>Signalement d'incivilités</h1>
+  <p>Participez à l'amélioration de votre cadre de vie</p>
+</header>
+
+<nav>
+  <a href="#deposer">Déposer</a>
+  <a href="#carte">Carte</a>
+  <a href="#apropos">À propos</a>
+</nav>
+
+<main>
+
+  <section id="deposer">
+    <h2>Déposer un signalement</h2>
+    <form id="formSignalement">
+      <label for="image">Photo (non fonctionnel dans la maquette) :</label>
+      <input type="file" id="image" disabled>
+      <p style="font-size: 0.9rem; color: #888; margin-top: 0.3rem;">
+        ⚠️ Pour le respect de la vie privée, veillez à <strong>flouter les visages</strong> visibles sur les photos.
+      </p>
+
+      <label for="description">Description :</label>
+      <textarea id="description" rows="4" placeholder="Décrivez l'incivilité..." required></textarea>
+
+      <label for="localisation">Localisation (clic sur la carte) :</label>
+      <input type="text" id="localisation" placeholder="Cliquez sur la carte pour choisir..." readonly required>
+
+      <label for="date">Date de l'incivilité :</label>
+      <input type="date" id="date" name="date" required>
+
+      <button type="submit">Envoyer</button>
+    </form>
+  </section>
+
+  <section id="carte">
+    <h2>Carte des signalements</h2>
+
+    <form id="filtreDates">
+      <div>
+        <label for="date-debut">Date de début :</label>
+        <input type="date" id="date-debut" name="date-debut">
+      </div>
+      <div>
+        <label for="date-fin">Date de fin :</label>
+        <input type="date" id="date-fin" name="date-fin">
+      </div>
+      <div style="align-self: flex-end;">
+        <button type="button" id="filtrerBtn">Filtrer</button>
+      </div>
+    </form>
+
+    <div id="map"></div>
+
+    <!-- Bouton pour exporter les signalements en CSV -->
+    <button id="exportBtn" style="margin-top: 1.5rem; background-color: #3498db; color: white;">Exporter les signalements</button>
+  </section>
+
+  <section id="apropos">
+    <h2>À propos</h2>
+    <p>
+      Ce site sert de <strong>base de données citoyenne</strong> pour <strong>recenser les incivilités</strong> constatées dans votre environnement.<br><br>
+      Son objectif est de <strong>mettre en lumière les zones plus ou moins à risques</strong> afin d’aider les habitants à <strong>éviter les lieux sensibles</strong> et à adopter des comportements préventifs.<br><br>
+      Cela contribue également à une <strong>prise de conscience collective</strong> et à l’<strong>amélioration de la sécurité locale</strong>.
+    </p>
+  </section>
+
+</main>
+
+<footer>
+  <p class="contact">Nous contacter : <a href="mailto:signalement.incivilite@gmail.com">signalement.incivilite@gmail.com</a></p>
+  <p>© 2025 - Ville Propre - Prototype de maquette (non fonctionnelle)</p>
+</footer>
+
+<script>
+  // Identifiant local unique
+  let userId = localStorage.getItem("userId");
+  if (!userId) {
+    userId = "user_" + Math.random().toString(36).substring(2, 12);
+    localStorage.setItem("userId", userId);
+  }
+
+  // Initialisation carte
+  const map = L.map('map').setView([48.8566, 2.3522], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+
+  let marker = null;
+  const localisationInput = document.getElementById("localisation");
+  let allMarkers = [];
+
+  map.on('click', function (e) {
+    const latlng = e.latlng;
+    const coords = `${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`;
+    localisationInput.value = coords;
+
+    if (marker) {
+      marker.setLatLng(latlng);
+    } else {
+      marker = L.marker(latlng).addTo(map);
+    }
+  });
+
+  const form = document.getElementById("formSignalement");
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+
+    const description = document.getElementById("description").value;
+    const localisation = localisationInput.value;
+    const date = document.getElementById("date").value;
+
+    if (!localisation || !description || !date) return;
+
+    const [lat, lng] = localisation.split(',').map(Number);
+    const signalement = { id: Date.now(), lat, lng, description, date, userId };
+
+    const signalements = JSON.parse(localStorage.getItem("signalements") || "[]");
+    signalements.push(signalement);
+    localStorage.setItem("signalements", JSON.stringify(signalements));
+
+    ajouterMarqueur(signalement);
+    form.reset();
+    localisationInput.value = "";
+    if (marker) {
+      map.removeLayer(marker);
+      marker = null;
+    }
+  });
+
+  function ajouterMarqueur(sig) {
+    const m = L.marker([sig.lat, sig.lng]).addTo(map);
+    let popupContent = `<strong>Incivilité</strong><br>${sig.description}<br><small>${sig.date}</small>`;
+
+    if (sig.userId === userId) {
+      popupContent += `<br><button onclick="supprimerSignalement(${sig.id})" style="margin-top:5px;">🗑 Supprimer</button>`;
+    }
+
+    m.bindPopup(popupContent);
+    m._sigId = sig.id;
+    allMarkers.push(m);
+  }
+
+  function supprimerSignalement(id) {
+    let signalements = JSON.parse(localStorage.getItem("signalements") || "[]");
+    signalements = signalements.filter(sig => sig.id !== id);
+    localStorage.setItem("signalements", JSON.stringify(signalements));
+    chargerSignalements();
+  }
+
+  function chargerSignalements(filter = null) {
+    allMarkers.forEach(m => map.removeLayer(m));
+    allMarkers = [];
+
+    const signalements = JSON.parse(localStorage.getItem("signalements") || "[]");
+
+    signalements.forEach(sig => {
+      if (filter) {
+        const sigDate = new Date(sig.date);
+        if (sigDate < filter.debut || sigDate > filter.fin) return;
+      }
+      ajouterMarqueur(sig);
+    });
+  }
+
+  // Initialisation
+  chargerSignalements();
+
+  document.getElementById("filtrerBtn").addEventListener("click", () => {
+    const debut = document.getElementById("date-debut").value;
+    const fin = document.getElementById("date-fin").value;
+
+    if (!debut || !fin) {
+      alert("Veuillez choisir une plage de dates.");
+      return;
+    }
+
+    const dateDebut = new Date(debut);
+    const dateFin = new Date(fin);
+
+    chargerSignalements({ debut: dateDebut, fin: dateFin });
+  });
+
+  // Exporter les signalements en CSV
+  document.getElementById("exportBtn").addEventListener("click", function() {
+    const signalements = JSON.parse(localStorage.getItem("signalements") || "[]");
+
+    const header = ['ID', 'Description', 'Latitude', 'Longitude', 'Date', 'UserID'];
+    const rows = signalements.map(sig => [
+      sig.id, sig.description, sig.lat, sig.lng, sig.date, sig.userId
+    ]);
+
+    let csvContent = "data:text/csv;charset=utf-8," 
+      + header.join(",") + "\n" 
+      + rows.map(e => e.join(",")).join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "signalements.csv");
+    link.click();
+  });
+</script>
+
+</body>
+</html>
