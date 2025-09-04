@@ -30,6 +30,7 @@
     #filtreDates { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
     #filtreDates div { flex: 1; min-width: 200px; }
     #filtreDates button { width: auto; background-color: #3498db; }
+    #downloadJson { display:block; margin-top:15px; background:#3498db; color:white; padding:0.7rem 1rem; border-radius:6px; text-decoration:none; text-align:center; }
     footer { text-align: center; padding: 2rem; background-color: #ecf0f1; font-size: 0.9rem; }
     .contact { font-weight: bold; color: #2c3e50; }
   </style>
@@ -66,6 +67,9 @@
 
       <button type="submit">Envoyer</button>
     </form>
+
+    <!-- Bouton pour télécharger le JSON mis à jour -->
+    <a id="downloadJson">Télécharger les signalements mis à jour</a>
   </section>
 
   <section id="carte">
@@ -86,9 +90,6 @@
     </form>
 
     <div id="map"></div>
-
-    <!-- Bouton pour exporter les signalements en CSV -->
-    <button id="exportBtn" style="margin-top: 1.5rem; background-color: #3498db; color: white;">Exporter les signalements</button>
   </section>
 
   <section id="apropos">
@@ -104,16 +105,12 @@
 
 <footer>
   <p class="contact">Nous contacter : <a href="mailto:signalement.incivilite@gmail.com">signalement.incivilite@gmail.com</a></p>
-  <p>© 2025 - Ville Propre - Prototype de maquette (non fonctionnelle)</p>
+  <p>© 2025 - Ville Propre - Version collaborative</p>
 </footer>
 
 <script>
-  // Identifiant local unique
-  let userId = localStorage.getItem("userId");
-  if (!userId) {
-    userId = "user_" + Math.random().toString(36).substring(2, 12);
-    localStorage.setItem("userId", userId);
-  }
+  let allMarkers = [];
+  let signalements = [];
 
   // Initialisation carte
   const map = L.map('map').setView([48.8566, 2.3522], 13);
@@ -123,7 +120,6 @@
 
   let marker = null;
   const localisationInput = document.getElementById("localisation");
-  let allMarkers = [];
 
   map.on('click', function (e) {
     const latlng = e.latlng;
@@ -137,6 +133,36 @@
     }
   });
 
+  // Charger les signalements depuis signalements.json
+  fetch('signalements.json')
+    .then(res => res.json())
+    .then(data => {
+      signalements = data;
+      chargerSignalements();
+    })
+    .catch(err => console.error("Impossible de charger signalements.json", err));
+
+  function ajouterMarqueur(sig) {
+    const m = L.marker([sig.lat, sig.lng]).addTo(map);
+    let popupContent = `<strong>Incivilité</strong><br>${sig.description}<br><small>${sig.date}</small>`;
+    m.bindPopup(popupContent);
+    allMarkers.push(m);
+  }
+
+  function chargerSignalements(filter = null) {
+    allMarkers.forEach(m => map.removeLayer(m));
+    allMarkers = [];
+
+    signalements.forEach(sig => {
+      if (filter) {
+        const sigDate = new Date(sig.date);
+        if (sigDate < filter.debut || sigDate > filter.fin) return;
+      }
+      ajouterMarqueur(sig);
+    });
+  }
+
+  // Soumission formulaire
   const form = document.getElementById("formSignalement");
   form.addEventListener("submit", function (e) {
     e.preventDefault();
@@ -148,59 +174,26 @@
     if (!localisation || !description || !date) return;
 
     const [lat, lng] = localisation.split(',').map(Number);
-    const signalement = { id: Date.now(), lat, lng, description, date, userId };
+    const signalement = { id: Date.now(), lat, lng, description, date };
 
-    const signalements = JSON.parse(localStorage.getItem("signalements") || "[]");
     signalements.push(signalement);
-    localStorage.setItem("signalements", JSON.stringify(signalements));
-
     ajouterMarqueur(signalement);
+
     form.reset();
     localisationInput.value = "";
     if (marker) {
       map.removeLayer(marker);
       marker = null;
     }
+
+    // Préparer le JSON à télécharger
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(signalements, null, 2));
+    const dlAnchor = document.getElementById('downloadJson');
+    dlAnchor.setAttribute("href", dataStr);
+    dlAnchor.setAttribute("download", "signalements.json");
   });
 
-  function ajouterMarqueur(sig) {
-    const m = L.marker([sig.lat, sig.lng]).addTo(map);
-    let popupContent = `<strong>Incivilité</strong><br>${sig.description}<br><small>${sig.date}</small>`;
-
-    if (sig.userId === userId) {
-      popupContent += `<br><button onclick="supprimerSignalement(${sig.id})" style="margin-top:5px;">🗑 Supprimer</button>`;
-    }
-
-    m.bindPopup(popupContent);
-    m._sigId = sig.id;
-    allMarkers.push(m);
-  }
-
-  function supprimerSignalement(id) {
-    let signalements = JSON.parse(localStorage.getItem("signalements") || "[]");
-    signalements = signalements.filter(sig => sig.id !== id);
-    localStorage.setItem("signalements", JSON.stringify(signalements));
-    chargerSignalements();
-  }
-
-  function chargerSignalements(filter = null) {
-    allMarkers.forEach(m => map.removeLayer(m));
-    allMarkers = [];
-
-    const signalements = JSON.parse(localStorage.getItem("signalements") || "[]");
-
-    signalements.forEach(sig => {
-      if (filter) {
-        const sigDate = new Date(sig.date);
-        if (sigDate < filter.debut || sigDate > filter.fin) return;
-      }
-      ajouterMarqueur(sig);
-    });
-  }
-
-  // Initialisation
-  chargerSignalements();
-
+  // Filtrage par dates
   document.getElementById("filtrerBtn").addEventListener("click", () => {
     const debut = document.getElementById("date-debut").value;
     const fin = document.getElementById("date-fin").value;
@@ -215,28 +208,9 @@
 
     chargerSignalements({ debut: dateDebut, fin: dateFin });
   });
-
-  // Exporter les signalements en CSV
-  document.getElementById("exportBtn").addEventListener("click", function() {
-    const signalements = JSON.parse(localStorage.getItem("signalements") || "[]");
-
-    const header = ['ID', 'Description', 'Latitude', 'Longitude', 'Date', 'UserID'];
-    const rows = signalements.map(sig => [
-      sig.id, sig.description, sig.lat, sig.lng, sig.date, sig.userId
-    ]);
-
-    let csvContent = "data:text/csv;charset=utf-8," 
-      + header.join(",") + "\n" 
-      + rows.map(e => e.join(",")).join("\n");
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "signalements.csv");
-    link.click();
-  });
 </script>
 
 </body>
 </html>
+
 
