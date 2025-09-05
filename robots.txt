@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://signalementincivilite.github.io/Signalement-incivilites/sitemap.xml
