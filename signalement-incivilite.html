@@ -3,7 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Signalement d'incivilités</title>
+  
+  <!-- SEO -->
+  <title>Signalement d'incivilités - Carte interactive citoyenne</title>
+  <meta name="description" content="Participez à l'amélioration de votre ville en signalant les incivilités près de chez vous. Carte interactive et base citoyenne pour un cadre de vie plus sûr.">
+  <meta name="keywords" content="incivilité, signalement, sécurité, citoyen, ville propre, carte interactive, prévention, quartier, ville">
+  <meta name="author" content="Ville Propre">
 
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
@@ -40,20 +45,20 @@
 <body>
 
 <header>
-  <h1>Signalement d'incivilités</h1>
-  <p>Participez à l'amélioration de votre cadre de vie</p>
+  <h1>Signalement d'incivilités citoyennes</h1>
+  <p>Participez à l'amélioration de votre cadre de vie grâce à la carte interactive</p>
 </header>
 
 <nav>
-  <a href="#deposer">Déposer</a>
-  <a href="#carte">Carte</a>
+  <a href="#deposer">Déposer un signalement</a>
+  <a href="#carte">Carte interactive</a>
   <a href="#apropos">À propos</a>
 </nav>
 
 <main>
 
   <section id="deposer">
-    <h2>Déposer un signalement</h2>
+    <h2>Déposer un signalement d'incivilité</h2>
     <form id="formSignalement">
       <label for="description">Description :</label>
       <textarea id="description" rows="4" placeholder="Décrivez l'incivilité..." required></textarea>
@@ -69,7 +74,7 @@
   </section>
 
   <section id="carte">
-    <h2>Carte des signalements</h2>
+    <h2>Carte interactive des incivilités signalées</h2>
 
     <form id="filtreDates">
       <div>
@@ -92,7 +97,7 @@
   </section>
 
   <section id="apropos">
-    <h2>À propos</h2>
+    <h2>À propos du projet de signalement d'incivilités</h2>
     <p>
       Ce site sert de <strong>base de données citoyenne</strong> pour <strong>recenser les incivilités</strong> constatées dans votre environnement.<br><br>
       Son objectif est de <strong>mettre en lumière les zones plus ou moins à risques</strong> afin d’aider les habitants à <strong>éviter les lieux sensibles</strong> et à adopter des comportements préventifs.<br><br>
@@ -239,4 +244,6 @@
 
 </body>
 </html>
+
+
 
